@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/IdeaProjects-Thesis_Simulation.iml" filepath="$PROJECT_DIR$/.idea/modules/IdeaProjects-Thesis_Simulation.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/IdeaProjects-Thesis_Simulation_main.iml" filepath="$PROJECT_DIR$/.idea/modules/IdeaProjects-Thesis_Simulation_main.iml" group="Thesis_Simulation" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/IdeaProjects-Thesis_Simulation_test.iml" filepath="$PROJECT_DIR$/.idea/modules/IdeaProjects-Thesis_Simulation_test.iml" group="Thesis_Simulation" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Thesis_Simulation_main.iml" filepath="$PROJECT_DIR$/.idea/modules/Thesis_Simulation_main.iml" group="Thesis_Simulation" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/Thesis_Simulation_test.iml" filepath="$PROJECT_DIR$/.idea/modules/Thesis_Simulation_test.iml" group="Thesis_Simulation" />
+    </modules>
+  </component>
+</project>

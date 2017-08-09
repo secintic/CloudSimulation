@@ -12,8 +12,10 @@ import java.util.Map;
 @ToString
 public class Task {
     double startTime;
-    double duration;
+    double endTime;
     String taskId;
+    int vmId;
+
     @Singular
     Map<String, Double> resources;
 }

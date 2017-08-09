@@ -14,11 +14,11 @@ public class ReadGoogleData {
             while ((line = br.readLine()) != null) {
                 String[] columns = line.split(",");
                 tasks.add(Task.builder()
-                        .startTime(Double.parseDouble(columns[1]))
-                        .duration(Double.parseDouble(columns[2]) - Double.parseDouble(columns[1]))
-                        .taskId(columns[3] + columns[4])
-                        .resource("CPU", Double.parseDouble(columns[6]))
-                        .resource("Memory", Double.parseDouble(columns[8])).build());
+                        .startTime(Double.parseDouble(columns[0])/(1000.0*1000.0))
+                        .endTime( Double.parseDouble(columns[1])/(1000.0*1000.0))
+                        .taskId(columns[2] + columns[3])
+                        .resource("CPU", Double.parseDouble(columns[5]))
+                        .resource("Memory", Double.parseDouble(columns[7])).build());
 
             }
         } catch (IOException e) {

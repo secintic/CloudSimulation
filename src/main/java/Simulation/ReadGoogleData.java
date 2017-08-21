@@ -18,7 +18,7 @@ public class ReadGoogleData {
                         .endTime( Double.parseDouble(columns[1])/(1000.0*1000.0))
                         .taskId(columns[2] + columns[3])
                         .resource("CPU", Double.parseDouble(columns[5]))
-                        .resource("Memory", Double.parseDouble(columns[7])).build());
+                        .resource("Memory", Double.parseDouble(columns[10])).build());
 
             }
         } catch (IOException e) {

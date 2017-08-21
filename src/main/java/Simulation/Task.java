@@ -6,16 +6,17 @@ import lombok.Singular;
 import lombok.ToString;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Data
 @Builder
 @ToString
 public class Task {
-    double startTime;
-    double endTime;
-    String taskId;
-    int vmId;
+    private double startTime;
+    private double endTime;
+    private String taskId;
+    private UUID vmId;
 
     @Singular
-    Map<String, Double> resources;
+    private Map<String, Double> resources;
 }

@@ -14,7 +14,7 @@ import java.util.UUID;
 @Data
 @Builder
 @ToString
-public class Vm {
+class Vm {
     private UUID VmId;
     @Builder.Default
     private Map<String, Task> tasks = new HashMap<>();
@@ -22,33 +22,33 @@ public class Vm {
     private Map<String, Double> usedResources = new HashMap<>();
     @Singular
     private Map<String, Double> capacities;
-    private boolean isRunning;
 
 
     @Tolerate
     Vm() {
     }
 
-    public void removeTask(Task task) {
+    void removeTask(Task task) {
         usedResources.put("CPU", usedResources.get("CPU") - task.getResources().get("CPU"));
         usedResources.put("Memory", usedResources.get("Memory") - task.getResources().get("Memory"));
         tasks.remove(task.getTaskId());
     }
 
-    public double getUtilization() {
+    double getUtilization() {
         return usedResources.getOrDefault("CPU", 0.0) / capacities.get("CPU") * 50.0
                 + usedResources.getOrDefault("Memory", 0.0) / capacities.get("Memory") * 50.0;
     }
 
-    public boolean checkVmSpace(Task task) {
+    boolean checkVmSpace(Task task) {
         return (capacities.get("CPU") - usedResources.getOrDefault("CPU", 0.0) > task.getResources().get("CPU")
-                && capacities.get("Memory") - usedResources.getOrDefault("Memory", 0.0) > task.getResources().get("Memory") && isRunning);
+                && capacities.get("Memory") - usedResources.getOrDefault("Memory", 0.0) > task.getResources().get("Memory"));
     }
 
-    public void assignTask(Task task) {
+    void assignTask(Task task, boolean pseudoAssign) {
         usedResources.put("CPU", usedResources.getOrDefault("CPU", 0.0) + task.getResources().get("CPU"));
         usedResources.put("Memory", usedResources.getOrDefault("Memory", 0.0) + task.getResources().get("Memory"));
         tasks.put(task.getTaskId(), task);
-        task.setVmId(VmId);
+        if (!pseudoAssign)
+            task.setVmId(VmId);
     }
 }

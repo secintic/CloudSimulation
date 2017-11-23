@@ -11,7 +11,7 @@ import java.util.UUID;
 @Data
 @Builder
 @ToString
-public class Task {
+class Task {
     private double startTime;
     private double endTime;
     private String taskId;

@@ -13,50 +13,75 @@ class SimulationEngine {
     private int numberOfVm;
     private List<Task> tasks;
 
-    void run(int simulationDuration, int threshold) {
+    void run(int simulationDuration, int threshold, int errorFreq) {
         createVms();
         tasks = ReadGoogleData.read();
         int taskCursor = 0;
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
             log.info("Simulation time: " + simulationTime);
-
-            //check start time of the tasks --> could be divided into new method
-            while (taskCursor < tasks.size()) {
-                if (tasks.get(taskCursor).getStartTime() <= simulationTime) {
-                    Vm foundVm = findAppropriateVm(tasks.get(taskCursor));
-                    if (foundVm != null)
-                        foundVm.assignTask(tasks.get(taskCursor), false);
-                    else {
-                        createNewVm().assignTask(tasks.get(taskCursor), false);
-                    }
-                    taskCursor++;
-                } else
-                    break;
-            }
-
-
-            //check end time of the tasks --> could be divided into new method
-            for (int j = 0; j < taskCursor && tasks.get(0).getEndTime() < simulationTime; j++) {
-                if (tasks.get(j).getEndTime() < simulationTime) {
-                    removeFromVm(tasks.get(j));
-                    tasks.remove(j);
-                    taskCursor--;
-                    j--;
-                }
-            }
-            Set<Vm> toBeConsolidated = new HashSet<>();
-            for (Map.Entry<UUID, Vm> entry : Vms.entrySet()) {
-                if (entry.getValue().getUtilization() < threshold && simulationTime > 500) {
-                    toBeConsolidated.add(entry.getValue());
-                }
-            }
-            for (Vm vm : toBeConsolidated) {
-                consolidateVm(vm);
-            }
-            toBeConsolidated.clear();
-            //printVmsTasks();
+            taskCursor = assignNewTask(taskCursor, simulationTime);
+            taskCursor = removeDoneTask(taskCursor, simulationTime);
+            checkVmFault(simulationTime, errorFreq);
+            consolidateLowUtilVms(threshold, simulationTime);
             printEnergyConsumption();
         }
+    }
+
+    private void consolidateLowUtilVms(int threshold, int simulationTime) {
+        Set<Vm> toBeConsolidated = new HashSet<>();
+        for (Map.Entry<UUID, Vm> entry : Vms.entrySet()) {
+            if (entry.getValue().getUtilization() < threshold && simulationTime > 500) {
+                toBeConsolidated.add(entry.getValue());
+            }
+        }
+        for (Vm vm : toBeConsolidated) {
+            consolidateVm(vm);
+        }
+        toBeConsolidated.clear();
+    }
+
+    private void checkVmFault(int simulationTime, int errorFreq) {
+        if (simulationTime % errorFreq == 50 & numberOfVm > 4) {
+            Random r = new Random();
+            Object[] keyArray = Vms.keySet().toArray();
+            Vm vm = Vms.get(keyArray[r.nextInt(numberOfVm)]);
+            log.info("An Error Occurred On VM: " + vm.getVmId());
+            if (!checkOtherVmsForMigration(vm)) {
+                Vm v = createNewVm();
+                vm.getTasks().values().forEach(task -> v.assignTask(task, false));
+                deleteVm(vm);
+            }else {
+                consolidateVm(vm);
+            }
+        }
+    }
+
+    private int removeDoneTask(int taskCursor, int simulationTime) {
+        for (int j = 0; j < taskCursor && tasks.get(0).getEndTime() < simulationTime; j++) {
+            if (tasks.get(j).getEndTime() < simulationTime) {
+                removeFromVm(tasks.get(j));
+                tasks.remove(j);
+                taskCursor--;
+                j--;
+            }
+        }
+        return taskCursor;
+    }
+
+    private int assignNewTask(int taskCursor, int simulationTime) {
+        while (taskCursor < tasks.size()) {
+            if (tasks.get(taskCursor).getStartTime() <= simulationTime) {
+                Vm foundVm = findAppropriateVm(tasks.get(taskCursor));
+                if (foundVm != null)
+                    foundVm.assignTask(tasks.get(taskCursor), false);
+                else {
+                    createNewVm().assignTask(tasks.get(taskCursor), false);
+                }
+                taskCursor++;
+            } else
+                break;
+        }
+        return taskCursor;
     }
 
     private void printEnergyConsumption() {
@@ -83,12 +108,16 @@ class SimulationEngine {
         UUID vmId = vm.getVmId();
         log.info("Consolidating Vm#" + vmId);
         if (checkOtherVmsForMigration(vm)) {
-            vm.getTasks().clear();
-            Vms.remove(vmId);
-            numberOfVm--;
-            log.info("Consolidated Vm#" + vmId);
+            deleteVm(vm);
         } else
-            log.info("Vm#" + vmId + "cannot be consolidated");
+            log.info("Vm#" + vmId + " CANNOT be consolidated");
+    }
+
+    private void deleteVm(Vm vm) {
+        vm.getTasks().clear();
+        Vms.remove(vm.getVmId());
+        numberOfVm--;
+        log.info("Consolidated Vm#" + vm.getVmId());
     }
 
     private boolean checkOtherVmsForMigration(Vm vm) {
@@ -98,7 +127,7 @@ class SimulationEngine {
             Vm foundVm = findMigrateVm(task, assignableVmList);
             if (foundVm == null) {
                 return false;
-            } else if (!foundVm.equals(vm)) {
+            } else {
                 assignableVmList.put(foundVm.getVmId(), Vm.builder().capacities(foundVm.getCapacities()).usedResources(foundVm.getUsedResources()).tasks(foundVm.getTasks()).VmId(foundVm.getVmId()).build());
                 assignableVmList.get(foundVm.getVmId()).assignTask(task, true);
                 assignedTasks.put(foundVm.getVmId(), task.getTaskId());

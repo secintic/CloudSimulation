@@ -13,7 +13,7 @@ class SimulationEngine {
     private int numberOfVm;
     private List<Task> tasks;
 
-    void run(int simulationDuration, int threshold, int errorFreq) {
+    void run(int simulationDuration, int threshold, int errorFreq, int experiment) {
         createVms();
         tasks = ReadGoogleData.read();
         int taskCursor = 0;
@@ -22,12 +22,21 @@ class SimulationEngine {
             taskCursor = assignNewTask(taskCursor, simulationTime);
             taskCursor = removeDoneTask(taskCursor, simulationTime);
             checkVmFault(simulationTime, errorFreq);
-            consolidateLowUtilVms(threshold, simulationTime);
+            switch (experiment) {
+                case 0:
+                    break;
+                case 1:
+                    consolidateLowUtilVms(threshold, simulationTime, false);
+                    break;
+                case 2:
+                    consolidateLowUtilVms(threshold, simulationTime,true);
+                    break;
+            }
             printEnergyConsumption();
         }
     }
 
-    private void consolidateLowUtilVms(int threshold, int simulationTime) {
+    private void consolidateLowUtilVms(int threshold, int simulationTime, boolean ftm) {
         Set<Vm> toBeConsolidated = new HashSet<>();
         for (Map.Entry<UUID, Vm> entry : Vms.entrySet()) {
             if (entry.getValue().getUtilization() < threshold && simulationTime > 500) {
@@ -35,7 +44,7 @@ class SimulationEngine {
             }
         }
         for (Vm vm : toBeConsolidated) {
-            consolidateVm(vm);
+            consolidateVm(vm, ftm);
         }
         toBeConsolidated.clear();
     }
@@ -50,8 +59,8 @@ class SimulationEngine {
                 Vm v = createNewVm();
                 vm.getTasks().values().forEach(task -> v.assignTask(task, false));
                 deleteVm(vm);
-            }else {
-                consolidateVm(vm);
+            } else {
+                consolidateVm(vm,false);
             }
         }
     }
@@ -104,7 +113,17 @@ class SimulationEngine {
     }
 
     //Check other vms before consolidation
-    private void consolidateVm(Vm vm) {
+    private void consolidateVm(Vm vm, boolean ftm) {
+        if(ftm){
+            double totalSpace = 0;
+            for (Vm v : Vms.values()){
+                totalSpace +=  v.getUtilization();
+            }
+            if(totalSpace < 200) {// all vms have same capacity
+                log.info("Consolidation is rejected according to ftm metric");
+                return;
+            }
+        }
         UUID vmId = vm.getVmId();
         log.info("Consolidating Vm#" + vmId);
         if (checkOtherVmsForMigration(vm)) {

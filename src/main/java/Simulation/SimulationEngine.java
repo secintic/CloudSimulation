@@ -3,6 +3,7 @@ package Simulation;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.*;
 import java.util.*;
 
 @Builder
@@ -12,8 +13,9 @@ class SimulationEngine {
     private HashMap<UUID, Vm> Vms = new HashMap<>();
     private int numberOfVm;
     private List<Task> tasks;
+    private double[] energyConsumptionArray;
 
-    void run(int simulationDuration, int threshold, int errorFreq, int experiment) {
+    void run(int simulationDuration, int threshold, int errorFreq, int experiment, String fileName) {
         createVms();
         tasks = ReadGoogleData.read();
         int taskCursor = 0;
@@ -29,10 +31,26 @@ class SimulationEngine {
                     consolidateLowUtilVms(threshold, simulationTime, false);
                     break;
                 case 2:
-                    consolidateLowUtilVms(threshold, simulationTime,true);
+                    consolidateLowUtilVms(threshold, simulationTime, true);
                     break;
             }
-            printEnergyConsumption();
+            energyConsumptionArray[simulationTime] += printEnergyConsumption();
+        }
+        writeEnergyConsumptionToFile(fileName);
+        Vms.clear();
+        tasks.clear();
+        numberOfVm = 0;
+        for (int i=0 ; i < simulationDuration ; i++){
+            energyConsumptionArray[i] = 0;
+        }
+    }
+
+    private void writeEnergyConsumptionToFile(String fileName) {
+        try (Writer writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(fileName), "utf-8"))) {
+            writer.append(Arrays.toString(energyConsumptionArray));
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -56,11 +74,11 @@ class SimulationEngine {
             Vm vm = Vms.get(keyArray[r.nextInt(numberOfVm)]);
             log.info("An Error Occurred On VM: " + vm.getVmId());
             if (!checkOtherVmsForMigration(vm)) {
-                Vm v = createNewVm();
+                Vm v = createNewVm(simulationTime);
                 vm.getTasks().values().forEach(task -> v.assignTask(task, false));
                 deleteVm(vm);
             } else {
-                consolidateVm(vm,false);
+                consolidateVm(vm, false);
             }
         }
     }
@@ -84,7 +102,7 @@ class SimulationEngine {
                 if (foundVm != null)
                     foundVm.assignTask(tasks.get(taskCursor), false);
                 else {
-                    createNewVm().assignTask(tasks.get(taskCursor), false);
+                    createNewVm(simulationTime).assignTask(tasks.get(taskCursor), false);
                 }
                 taskCursor++;
             } else
@@ -93,12 +111,13 @@ class SimulationEngine {
         return taskCursor;
     }
 
-    private void printEnergyConsumption() {
+    private double printEnergyConsumption() {
         double energyConsumption = 0;
         for (Vm v : Vms.values()) {
             energyConsumption += 100 + v.getUtilization();
         }
         log.info("energy consumption: " + energyConsumption);
+        return energyConsumption;
     }
 
     private void printVmsTasks() {
@@ -114,12 +133,12 @@ class SimulationEngine {
 
     //Check other vms before consolidation
     private void consolidateVm(Vm vm, boolean ftm) {
-        if(ftm){
+        if (ftm) {
             double totalSpace = 0;
-            for (Vm v : Vms.values()){
-                totalSpace +=  v.getUtilization();
+            for (Vm v : Vms.values()) {
+                totalSpace += v.getUtilization();
             }
-            if(totalSpace < 200) {// all vms have same capacity
+            if (totalSpace < 200) {// all vms have same capacity
                 log.info("Consolidation is rejected according to ftm metric");
                 return;
             }
@@ -157,9 +176,11 @@ class SimulationEngine {
         return true;
     }
 
-    private Vm createNewVm() {
+    private Vm createNewVm(int i) {
         UUID vmId = UUID.randomUUID();
         numberOfVm++;
+        for (int j = i; j < i+ 6 && j < 1000  ; j++)
+            energyConsumptionArray[j] += 100;
         Vms.put(vmId, Vm.builder().VmId(vmId)
                 .capacity("CPU", 2.0).capacity("Memory", 2.0).build());
         return Vms.get(vmId);

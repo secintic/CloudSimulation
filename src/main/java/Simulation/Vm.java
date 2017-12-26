@@ -31,7 +31,7 @@ class Vm {
     void removeTask(Task task) {
         usedResources.put("CPU", usedResources.get("CPU") - task.getResources().get("CPU"));
         usedResources.put("Memory", usedResources.get("Memory") - task.getResources().get("Memory"));
-        tasks.remove(task.getTaskId());
+        this.tasks.remove(task.getTaskId());
     }
 
     double getUtilization() {
@@ -47,8 +47,9 @@ class Vm {
     void assignTask(Task task, boolean pseudoAssign) {
         usedResources.put("CPU", usedResources.getOrDefault("CPU", 0.0) + task.getResources().get("CPU"));
         usedResources.put("Memory", usedResources.getOrDefault("Memory", 0.0) + task.getResources().get("Memory"));
-        tasks.put(task.getTaskId(), task);
         if (!pseudoAssign)
             task.setVmId(VmId);
+        this.tasks.put(task.getTaskId(), task);
+
     }
 }

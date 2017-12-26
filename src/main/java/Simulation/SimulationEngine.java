@@ -17,12 +17,12 @@ class SimulationEngine {
 
     void run(int simulationDuration, int threshold, int errorFreq, int experiment, String fileName) {
         createVms();
-        tasks = ReadGoogleData.read();
-        int taskCursor = 0;
+        //tasks = ReadGoogleData.read();
+        tasks = ReadGoogleData.generatePoisson(simulationDuration);
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
             log.info("Simulation time: " + simulationTime);
-            taskCursor = assignNewTask(taskCursor, simulationTime);
-            taskCursor = removeDoneTask(taskCursor, simulationTime);
+            assignNewTasks(simulationTime);
+            removeDoneTasks(simulationTime);
             checkVmFault(simulationTime, errorFreq);
             switch (experiment) {
                 case 0:
@@ -34,13 +34,13 @@ class SimulationEngine {
                     consolidateLowUtilVms(threshold, simulationTime, true);
                     break;
             }
-            energyConsumptionArray[simulationTime] += printEnergyConsumption();
+            energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
         }
         writeEnergyConsumptionToFile(fileName);
         Vms.clear();
         tasks.clear();
         numberOfVm = 0;
-        for (int i=0 ; i < simulationDuration ; i++){
+        for (int i = 0; i < simulationDuration; i++) {
             energyConsumptionArray[i] = 0;
         }
     }
@@ -76,52 +76,44 @@ class SimulationEngine {
             if (!checkOtherVmsForMigration(vm)) {
                 Vm v = createNewVm(simulationTime);
                 vm.getTasks().values().forEach(task -> v.assignTask(task, false));
-                deleteVm(vm);
-            } else {
-                consolidateVm(vm, false);
             }
+            deleteVm(vm);
         }
     }
 
-    private int removeDoneTask(int taskCursor, int simulationTime) {
-        for (int j = 0; j < taskCursor && tasks.get(0).getEndTime() < simulationTime; j++) {
+    private void removeDoneTasks(int simulationTime) {
+        for (int j = 0; j < tasks.size(); j++) {
             if (tasks.get(j).getEndTime() < simulationTime) {
                 removeFromVm(tasks.get(j));
                 tasks.remove(j);
-                taskCursor--;
                 j--;
-            }
-        }
-        return taskCursor;
-    }
-
-    private int assignNewTask(int taskCursor, int simulationTime) {
-        while (taskCursor < tasks.size()) {
-            if (tasks.get(taskCursor).getStartTime() <= simulationTime) {
-                Vm foundVm = findAppropriateVm(tasks.get(taskCursor));
-                if (foundVm != null)
-                    foundVm.assignTask(tasks.get(taskCursor), false);
-                else {
-                    createNewVm(simulationTime).assignTask(tasks.get(taskCursor), false);
-                }
-                taskCursor++;
-            } else
+            } else if (simulationTime < tasks.get(j).getStartTime() + 50)
                 break;
         }
-        return taskCursor;
     }
 
-    private double printEnergyConsumption() {
+    private void assignNewTasks(int simulationTime) {
+        for (Task task : tasks) {
+            if (task.getStartTime() <= simulationTime) {
+                Vm foundVm = findAppropriateVm(task);
+                if (foundVm != null)
+                    foundVm.assignTask(task, false);
+                else {
+                    createNewVm(simulationTime).assignTask(task, false);
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    private double calculateEnergyConsumption() {
         double energyConsumption = 0;
         for (Vm v : Vms.values()) {
-            energyConsumption += 100 + v.getUtilization();
+            energyConsumption += 50 + v.getUtilization();
         }
         log.info("energy consumption: " + energyConsumption);
         return energyConsumption;
-    }
-
-    private void printVmsTasks() {
-        Vms.forEach((key, value) -> log.info("VMID: " + key + " numberOfTask: " + value.getTasks().size() + "     utilization: " + value.getUtilization()));
     }
 
     private void createVms() {
@@ -179,7 +171,7 @@ class SimulationEngine {
     private Vm createNewVm(int i) {
         UUID vmId = UUID.randomUUID();
         numberOfVm++;
-        for (int j = i; j < i+ 6 && j < 1000  ; j++)
+        for (int j = i; j < i + 10 && j < 1000; j++)
             energyConsumptionArray[j] += 100;
         Vms.put(vmId, Vm.builder().VmId(vmId)
                 .capacity("CPU", 2.0).capacity("Memory", 2.0).build());

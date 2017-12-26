@@ -15,7 +15,7 @@ class Task {
     private double startTime;
     private double endTime;
     private String taskId;
-    private UUID vmId;
+    private String vmId;
 
     @Singular
     private Map<String, Double> resources;

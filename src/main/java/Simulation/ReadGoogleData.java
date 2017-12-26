@@ -36,13 +36,13 @@ public class ReadGoogleData {
     public static List<Task> generatePoisson(int simulationDuration) {
         List<Task> tasks = new ArrayList<>();
         Random r = new Random();
-        for (int i = 0; i < simulationDuration - 75; i++) {
-            int numberOfTasksInTheCycle = r.nextInt(21);
+        for (int i = 0; i < simulationDuration - 75; i = i + 5) {
+            int numberOfTasksInTheCycle = r.nextInt(11);
             while (numberOfTasksInTheCycle > 0) {
                 tasks.add(Task.builder()
                         .startTime(i)
                         .endTime(i + (r.nextInt(101) + 50))
-                        .taskId(Integer.toString(tasks.size()+1))
+                        .taskId(Integer.toString(tasks.size() + 1))
                         .resource("CPU", (r.nextInt(21) + 10) / 100.0)
                         .resource("Memory", (r.nextInt(21) + 10) / 100.0).build());
                 numberOfTasksInTheCycle--;

@@ -10,7 +10,7 @@ import java.util.*;
 @Slf4j
 class SimulationEngine {
     @Builder.Default
-    private HashMap<UUID, Vm> Vms = new HashMap<>();
+    private HashMap<String, Vm> Vms = new HashMap<>();
     private int numberOfVm;
     private List<Task> tasks;
     private double[] energyConsumptionArray;
@@ -19,6 +19,7 @@ class SimulationEngine {
         createVms();
         //tasks = ReadGoogleData.read();
         tasks = ReadGoogleData.generatePoisson(simulationDuration);
+        double[] numberOfActiveApplication = new double[simulationDuration];
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
             log.info("Simulation time: " + simulationTime);
             assignNewTasks(simulationTime);
@@ -35,8 +36,10 @@ class SimulationEngine {
                     break;
             }
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
+            numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
         }
-        writeEnergyConsumptionToFile(fileName);
+        writeToFile(fileName, energyConsumptionArray);
+        writeToFile("apps.txt", numberOfActiveApplication);
         Vms.clear();
         tasks.clear();
         numberOfVm = 0;
@@ -45,10 +48,18 @@ class SimulationEngine {
         }
     }
 
-    private void writeEnergyConsumptionToFile(String fileName) {
+    private int countNumberOfActiveApplications() {
+        int numberOfActiveApplications = 0;
+        for (Vm v : Vms.values()) {
+            numberOfActiveApplications += v.getTasks().size();
+        }
+        return numberOfActiveApplications;
+    }
+
+    private void writeToFile(String fileName, double[] values) {
         try (Writer writer = new BufferedWriter(new OutputStreamWriter(
                 new FileOutputStream(fileName), "utf-8"))) {
-            writer.append(Arrays.toString(energyConsumptionArray));
+            writer.append(Arrays.toString(values));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -56,7 +67,7 @@ class SimulationEngine {
 
     private void consolidateLowUtilVms(int threshold, int simulationTime, boolean ftm) {
         Set<Vm> toBeConsolidated = new HashSet<>();
-        for (Map.Entry<UUID, Vm> entry : Vms.entrySet()) {
+        for (Map.Entry<String, Vm> entry : Vms.entrySet()) {
             if (entry.getValue().getUtilization() < threshold && simulationTime > 500) {
                 toBeConsolidated.add(entry.getValue());
             }
@@ -83,7 +94,7 @@ class SimulationEngine {
 
     private void removeDoneTasks(int simulationTime) {
         for (int j = 0; j < tasks.size(); j++) {
-            if (tasks.get(j).getEndTime() < simulationTime) {
+            if (tasks.get(j).getEndTime() <= simulationTime) {
                 removeFromVm(tasks.get(j));
                 tasks.remove(j);
                 j--;
@@ -95,11 +106,13 @@ class SimulationEngine {
     private void assignNewTasks(int simulationTime) {
         for (Task task : tasks) {
             if (task.getStartTime() <= simulationTime) {
-                Vm foundVm = findAppropriateVm(task);
-                if (foundVm != null)
-                    foundVm.assignTask(task, false);
-                else {
-                    createNewVm(simulationTime).assignTask(task, false);
+                if (task.getVmId() == null) {
+                    Vm foundVm = findAppropriateVm(task);
+                    if (foundVm != null)
+                        foundVm.assignTask(task, false);
+                    else {
+                        createNewVm(simulationTime).assignTask(task, false);
+                    }
                 }
             } else {
                 break;
@@ -119,7 +132,7 @@ class SimulationEngine {
     private void createVms() {
         for (int i = 0; i < numberOfVm; i++) {
             UUID vmId = UUID.randomUUID();
-            Vms.put(vmId, Vm.builder().VmId(vmId).capacity("CPU", 2.0).capacity("Memory", 2.0).build());
+            Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString()).capacity("CPU", 2.0).capacity("Memory", 2.0).build());
         }
     }
 
@@ -135,7 +148,7 @@ class SimulationEngine {
                 return;
             }
         }
-        UUID vmId = vm.getVmId();
+        String vmId = vm.getVmId();
         log.info("Consolidating Vm#" + vmId);
         if (checkOtherVmsForMigration(vm)) {
             deleteVm(vm);
@@ -151,19 +164,24 @@ class SimulationEngine {
     }
 
     private boolean checkOtherVmsForMigration(Vm vm) {
-        Map<UUID, Vm> assignableVmList = new HashMap<>();
-        Map<UUID, String> assignedTasks = new HashMap<>();
+        Map<String, Vm> assignableVmList = new HashMap<>();
+        Map<String, String> assignedTasks = new HashMap<>();
         for (Task task : vm.getTasks().values()) {
             Vm foundVm = findMigrateVm(task, assignableVmList);
             if (foundVm == null) {
                 return false;
             } else {
-                assignableVmList.put(foundVm.getVmId(), Vm.builder().capacities(foundVm.getCapacities()).usedResources(foundVm.getUsedResources()).tasks(foundVm.getTasks()).VmId(foundVm.getVmId()).build());
+                if (!(assignableVmList.containsKey(foundVm.getVmId()))) {
+                    assignableVmList.put(foundVm.getVmId(), Vm.builder().capacities(foundVm.getCapacities()).usedResources(foundVm.getUsedResources()).tasks(foundVm.getTasks()).VmId(foundVm.getVmId()).build());
+                }
                 assignableVmList.get(foundVm.getVmId()).assignTask(task, true);
-                assignedTasks.put(foundVm.getVmId(), task.getTaskId());
+                assignedTasks.put(task.getTaskId(), foundVm.getVmId());
             }
         }
-        assignableVmList.forEach((key, value) -> value.getTasks().get(assignedTasks.get(key)).setVmId(key));
+        for (Map.Entry<String, String> entry : assignedTasks.entrySet()) {
+            assignableVmList.get(entry.getValue()).getTasks().get(entry.getKey()).setVmId(entry.getValue());
+        }
+
         assignableVmList.forEach((key, value) -> Vms.replace(key, value));
         return true;
     }
@@ -173,9 +191,9 @@ class SimulationEngine {
         numberOfVm++;
         for (int j = i; j < i + 10 && j < 1000; j++)
             energyConsumptionArray[j] += 100;
-        Vms.put(vmId, Vm.builder().VmId(vmId)
+        Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString())
                 .capacity("CPU", 2.0).capacity("Memory", 2.0).build());
-        return Vms.get(vmId);
+        return Vms.get(vmId.toString());
     }
 
     private Vm findAppropriateVm(Task task) {
@@ -187,7 +205,7 @@ class SimulationEngine {
         return null;
     }
 
-    private Vm findMigrateVm(Task task, Map<UUID, Vm> pseudoList) {
+    private Vm findMigrateVm(Task task, Map<String, Vm> pseudoList) {
         for (Vm vm : Vms.values()) {
             if (!vm.getVmId().equals(task.getVmId())) {
                 if (pseudoList.containsKey(pseudoList.get(vm.getVmId()))) {
@@ -204,6 +222,8 @@ class SimulationEngine {
     }
 
     private void removeFromVm(Task task) {
+        log.info(task.toString());
+        log.info(Vms.toString());
         Vms.get(task.getVmId()).removeTask(task);
     }
 }

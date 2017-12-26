@@ -15,7 +15,7 @@ import java.util.UUID;
 @Builder
 @ToString
 class Vm {
-    private UUID VmId;
+    private String VmId;
     @Builder.Default
     private Map<String, Task> tasks = new HashMap<>();
     @Builder.Default

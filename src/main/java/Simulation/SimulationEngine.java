@@ -3,7 +3,9 @@ package Simulation;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 @Builder
@@ -14,12 +16,15 @@ class SimulationEngine {
     private int numberOfVm;
     private List<Task> tasks;
     private double[] energyConsumptionArray;
+    private double[] numberOfMigration;
 
-    void run(int simulationDuration, int threshold, int errorFreq, int experiment, String fileName) {
+    void run(int simulationDuration, int threshold, int errorFreq, int experiment, String fileName) throws IOException {
         createVms();
         //tasks = ReadGoogleData.read();
         tasks = ReadGoogleData.generatePoisson(simulationDuration);
         double[] numberOfActiveApplication = new double[simulationDuration];
+        double[] numberOfVms = new double[simulationDuration];
+        numberOfMigration = new double[simulationDuration];
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
             log.info("Simulation time: " + simulationTime);
             assignNewTasks(simulationTime);
@@ -37,9 +42,12 @@ class SimulationEngine {
             }
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
+            numberOfVms[simulationTime] = numberOfVm;
         }
         writeToFile(fileName, energyConsumptionArray);
-        writeToFile("apps.txt", numberOfActiveApplication);
+        writeToFile("apps.csv", numberOfActiveApplication);
+        writeToFile("vms.csv", numberOfVms);
+        writeToFile("migration.csv", numberOfMigration);
         Vms.clear();
         tasks.clear();
         numberOfVm = 0;
@@ -56,24 +64,26 @@ class SimulationEngine {
         return numberOfActiveApplications;
     }
 
-    private void writeToFile(String fileName, double[] values) {
-        try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-                new FileOutputStream(fileName), "utf-8"))) {
-            writer.append(Arrays.toString(values));
-        } catch (IOException e) {
-            e.printStackTrace();
+    private void writeToFile(String fileName, double[] values) throws IOException {
+        BufferedWriter br = new BufferedWriter(new FileWriter(fileName));
+        StringBuilder sb = new StringBuilder();
+        for (double element : values) {
+            sb.append(element);
+            sb.append(",");
         }
+        br.write(sb.toString());
+        br.close();
     }
 
     private void consolidateLowUtilVms(int threshold, int simulationTime, boolean ftm) {
         Set<Vm> toBeConsolidated = new HashSet<>();
         for (Map.Entry<String, Vm> entry : Vms.entrySet()) {
-            if (entry.getValue().getUtilization() < threshold && simulationTime > 500) {
+            if (entry.getValue().getUtilization() < threshold && simulationTime > 100) {
                 toBeConsolidated.add(entry.getValue());
             }
         }
         for (Vm vm : toBeConsolidated) {
-            consolidateVm(vm, ftm);
+            consolidateVm(vm, ftm, simulationTime);
         }
         toBeConsolidated.clear();
     }
@@ -84,7 +94,7 @@ class SimulationEngine {
             Object[] keyArray = Vms.keySet().toArray();
             Vm vm = Vms.get(keyArray[r.nextInt(numberOfVm)]);
             log.info("An Error Occurred On VM: " + vm.getVmId());
-            if (!checkOtherVmsForMigration(vm)) {
+            if (!checkOtherVmsForMigration(vm, simulationTime)) {
                 Vm v = createNewVm(simulationTime);
                 vm.getTasks().values().forEach(task -> v.assignTask(task, false));
             }
@@ -137,7 +147,7 @@ class SimulationEngine {
     }
 
     //Check other vms before consolidation
-    private void consolidateVm(Vm vm, boolean ftm) {
+    private void consolidateVm(Vm vm, boolean ftm, int time) {
         if (ftm) {
             double totalSpace = 0;
             for (Vm v : Vms.values()) {
@@ -150,7 +160,7 @@ class SimulationEngine {
         }
         String vmId = vm.getVmId();
         log.info("Consolidating Vm#" + vmId);
-        if (checkOtherVmsForMigration(vm)) {
+        if (checkOtherVmsForMigration(vm, time)) {
             deleteVm(vm);
         } else
             log.info("Vm#" + vmId + " CANNOT be consolidated");
@@ -163,7 +173,7 @@ class SimulationEngine {
         log.info("Consolidated Vm#" + vm.getVmId());
     }
 
-    private boolean checkOtherVmsForMigration(Vm vm) {
+    private boolean checkOtherVmsForMigration(Vm vm, int time) {
         Map<String, Vm> assignableVmList = new HashMap<>();
         Map<String, String> assignedTasks = new HashMap<>();
         for (Task task : vm.getTasks().values()) {
@@ -181,7 +191,7 @@ class SimulationEngine {
         for (Map.Entry<String, String> entry : assignedTasks.entrySet()) {
             assignableVmList.get(entry.getValue()).getTasks().get(entry.getKey()).setVmId(entry.getValue());
         }
-
+        this.numberOfMigration[time] += assignedTasks.size();
         assignableVmList.forEach((key, value) -> Vms.replace(key, value));
         return true;
     }
@@ -222,8 +232,6 @@ class SimulationEngine {
     }
 
     private void removeFromVm(Task task) {
-        log.info(task.toString());
-        log.info(Vms.toString());
         Vms.get(task.getVmId()).removeTask(task);
     }
 }

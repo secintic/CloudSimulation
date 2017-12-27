@@ -36,8 +36,8 @@ public class ReadGoogleData {
     public static List<Task> generatePoisson(int simulationDuration) {
         List<Task> tasks = new ArrayList<>();
         Random r = new Random();
-        for (int i = 0; i < simulationDuration - 75; i = i + 5) {
-            int numberOfTasksInTheCycle = r.nextInt(11);
+        for (int i = 0; i < simulationDuration - 75; i++) {
+            int numberOfTasksInTheCycle = r.nextInt(21);
             while (numberOfTasksInTheCycle > 0) {
                 tasks.add(Task.builder()
                         .startTime(i)

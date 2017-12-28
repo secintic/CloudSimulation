@@ -6,9 +6,7 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="Documents-Thesis_Simulation_main" target="1.8" />
-      <module name="Documents-Thesis_Simulation_main~1" target="1.8" />
       <module name="Documents-Thesis_Simulation_test" target="1.8" />
-      <module name="Documents-Thesis_Simulation_test~1" target="1.8" />
       <module name="IdeaProjects-Thesis_Simulation_main" target="1.8" />
       <module name="IdeaProjects-Thesis_Simulation_test" target="1.8" />
       <module name="New folder-Thesis_Simulation_main" target="1.8" />

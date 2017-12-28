@@ -24,31 +24,66 @@ public class ReadGoogleData {
         return tasks;
     }
 
-    public static void writeDataToText(List<Task> tasks) {
-        try (Writer writer = new BufferedWriter(new OutputStreamWriter(
-                new FileOutputStream("tasks.txt"), "utf-8"))) {
-            writer.append(tasks.toString());
+    public static List<Task> readDataFromCsv() throws FileNotFoundException {
+        String line;
+        List<Task> tasks = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader("data.csv"))) {
+            while ((line = br.readLine()) != null) {
+                String[] columns = line.split(",");
+                tasks.add(Task.builder()
+                        .startTime(Double.parseDouble(columns[0]))
+                        .endTime(Double.parseDouble(columns[1]))
+                        .taskId(columns[2])
+                        .resource("CPU", Double.parseDouble(columns[3]))
+                        .resource("Memory", Double.parseDouble(columns[4])).build());
+
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return tasks;
     }
 
-    public static List<Task> generatePoisson(int simulationDuration) {
+    private static void writeDataToCsv(List<Task> tasks) throws FileNotFoundException {
+        PrintWriter pw = new PrintWriter(new File("data.csv"));
+        StringBuilder sb = new StringBuilder();
+        for (Task t : tasks) {
+            sb.append(t.getStartTime());
+            sb.append(',');
+            sb.append(t.getEndTime());
+            sb.append(',');
+            sb.append(t.getTaskId());
+            sb.append(',');
+            sb.append(t.getResources().get("CPU"));
+            sb.append(',');
+            sb.append(t.getResources().get("Memory"));
+            sb.append('\n');
+        }
+        pw.write(sb.toString());
+        pw.close();
+        System.out.println("done!");
+    }
+
+    public static List<Task> generatePoisson(int simulationDuration) throws FileNotFoundException {
         List<Task> tasks = new ArrayList<>();
         Random r = new Random();
         for (int i = 0; i < simulationDuration - 75; i++) {
-            int numberOfTasksInTheCycle = r.nextInt(21);
+            int numberOfTasksInTheCycle = r.nextInt(11);
+            if (i == 200)
+                numberOfTasksInTheCycle += 250;
+            if (i % 200 == 0 || i % 200 == 25 || i % 200 == 50 || i % 200 == 75)
+                numberOfTasksInTheCycle += 60;
             while (numberOfTasksInTheCycle > 0) {
                 tasks.add(Task.builder()
                         .startTime(i)
-                        .endTime(i + (r.nextInt(101) + 50))
+                        .endTime(i + (r.nextInt(51) + 50))
                         .taskId(Integer.toString(tasks.size() + 1))
                         .resource("CPU", (r.nextInt(21) + 10) / 100.0)
                         .resource("Memory", (r.nextInt(21) + 10) / 100.0).build());
                 numberOfTasksInTheCycle--;
             }
         }
-        //writeDataToText(tasks);
+        writeDataToCsv(tasks);
         return tasks;
     }
 }

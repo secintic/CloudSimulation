@@ -9,7 +9,6 @@ import lombok.experimental.Tolerate;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Data
 @Builder
@@ -40,8 +39,8 @@ class Vm {
     }
 
     boolean checkVmSpace(Task task) {
-        return (capacities.get("CPU") - usedResources.getOrDefault("CPU", 0.0) > task.getResources().get("CPU")
-                && capacities.get("Memory") - usedResources.getOrDefault("Memory", 0.0) > task.getResources().get("Memory"));
+        return (capacities.get("CPU") - usedResources.getOrDefault("CPU", 0.0) >= task.getResources().get("CPU")
+                && capacities.get("Memory") - usedResources.getOrDefault("Memory", 0.0) >= task.getResources().get("Memory"));
     }
 
     void assignTask(Task task, boolean pseudoAssign) {

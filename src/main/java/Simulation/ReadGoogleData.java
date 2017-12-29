@@ -61,7 +61,6 @@ public class ReadGoogleData {
         }
         pw.write(sb.toString());
         pw.close();
-        System.out.println("done!");
     }
 
     public static List<Task> generatePoisson(int simulationDuration) throws FileNotFoundException {

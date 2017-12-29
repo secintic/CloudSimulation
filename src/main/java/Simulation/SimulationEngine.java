@@ -42,7 +42,11 @@ class SimulationEngine {
             }
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
-            numberOfVms[simulationTime] = numberOfVm;
+            if (simulationTime == 990) {
+                log.info("afsdassa");
+            }
+            log.info("number of application: " + tasks.size() + " number of Vm: " + Vms.size());
+            numberOfVms[simulationTime] = Vms.size();
         }
         writeToFile(fileName, energyConsumptionArray);
         writeToFile("apps.csv", numberOfActiveApplication);
@@ -54,9 +58,6 @@ class SimulationEngine {
         Vms.clear();
         tasks.clear();
         numberOfVm = 0;
-        for (int i = 0; i < simulationDuration; i++) {
-            energyConsumptionArray[i] = 0;
-        }
     }
 
     private int countNumberOfActiveApplications() {
@@ -64,6 +65,7 @@ class SimulationEngine {
         for (Vm v : Vms.values()) {
             numberOfActiveApplications += v.getTasks().size();
         }
+
         return numberOfActiveApplications;
     }
 
@@ -111,8 +113,7 @@ class SimulationEngine {
                 removeFromVm(tasks.get(j));
                 tasks.remove(j);
                 j--;
-            } else if (simulationTime < tasks.get(j).getStartTime() + 50)
-                break;
+            }
         }
     }
 
@@ -138,7 +139,6 @@ class SimulationEngine {
         for (Vm v : Vms.values()) {
             energyConsumption += 100 + v.getUtilization();
         }
-        log.info("energy consumption: " + energyConsumption);
         return energyConsumption;
     }
 
@@ -154,7 +154,8 @@ class SimulationEngine {
         if (ftm) {
             double totalSpace = 0;
             for (Vm v : Vms.values()) {
-                totalSpace += v.getUtilization();
+                if (v.getUtilization() >= 20 && !(v.getVmId().equals(vm.getVmId())))
+                    totalSpace += v.getUtilization();
             }
             if (totalSpace < 200) {// all vms have same capacity
                 log.info("Consolidation is rejected according to ftm metric");
@@ -162,17 +163,18 @@ class SimulationEngine {
             }
         }
         String vmId = vm.getVmId();
-        log.info("Consolidating Vm#" + vmId);
+        //  log.info("Consolidating Vm#" + vmId);
         if (checkOtherVmsForMigration(vm, time)) {
             deleteVm(vm);
-        } else
-            log.info("Vm#" + vmId + " CANNOT be consolidated");
+        } //else
+        //       log.info("Vm#" + vmId + " CANNOT be consolidated");
     }
 
     private void deleteVm(Vm vm) {
+        vm.getTasks().clear();
         Vms.remove(vm.getVmId());
         numberOfVm--;
-        log.info("Consolidated Vm#" + vm.getVmId());
+        //     log.info("Consolidated Vm#" + vm.getVmId());
     }
 
     private boolean checkOtherVmsForMigration(Vm vm, int time) {
@@ -184,7 +186,13 @@ class SimulationEngine {
                 return false;
             } else {
                 if (!(assignableVmList.containsKey(foundVm.getVmId()))) {
-                    assignableVmList.put(foundVm.getVmId(), Vm.builder().capacities(foundVm.getCapacities()).usedResources(foundVm.getUsedResources()).VmId(foundVm.getVmId()).build());
+                    HashMap<String, Double> usedResources = new HashMap<>();
+                    usedResources.put("CPU", foundVm.getUsedResources().get("CPU"));
+                    usedResources.put("Memory", foundVm.getUsedResources().get("Memory"));
+                    assignableVmList.put(foundVm.getVmId(),
+                            Vm.builder().capacities(foundVm.getCapacities())
+                                    .usedResources(usedResources)
+                                    .VmId(foundVm.getVmId()).build());
                     HashMap<String, Task> tasks = new HashMap<>();
                     for (Task t : foundVm.getTasks().values()) {
                         tasks.put(t.getTaskId(), Task.builder()
@@ -216,6 +224,7 @@ class SimulationEngine {
             energyConsumptionArray[j] += 100;
         Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString())
                 .capacity("CPU", 2.0).capacity("Memory", 2.0).build());
+        log.info("Creating a new Vm: " + vmId.toString());
         return Vms.get(vmId.toString());
     }
 

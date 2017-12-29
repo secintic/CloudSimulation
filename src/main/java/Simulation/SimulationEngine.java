@@ -142,7 +142,7 @@ class SimulationEngine {
     private void createVms() {
         for (int i = 0; i < numberOfVm; i++) {
             UUID vmId = UUID.randomUUID();
-            Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString()).capacity("CPU", 16.0).capacity("Memory", 16.0).build());
+            Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString()).capacity("CPU", 20.0).capacity("Memory", 20.0).build());
         }
     }
 
@@ -151,10 +151,10 @@ class SimulationEngine {
         if (ftm) {
             double totalSpace = 0;
             for (Vm v : Vms.values()) {
-                if (v.getUtilization() >= 20 && !(v.getVmId().equals(vm.getVmId())))
+                if (!(v.getVmId().equals(vm.getVmId())))
                     totalSpace += v.getUtilization();
             }
-            if (totalSpace < 200) {// all vms have same capacity
+            if (totalSpace < 250) {// all vms have same capacity
                 log.info("Consolidation is rejected according to ftm metric");
                 return;
             }
@@ -217,10 +217,10 @@ class SimulationEngine {
     private Vm createNewVm(int i) {
         UUID vmId = UUID.randomUUID();
         numberOfVm++;
-        for (int j = i; j < i + 10 && j < 1000; j++)
+        for (int j = i; j < i + 20 && j < 1000; j++)
             energyConsumptionArray[j] += 200;
         Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString())
-                .capacity("CPU", 2.0).capacity("Memory", 2.0).build());
+                .capacity("CPU", 20.0).capacity("Memory", 20.0).build());
         log.info("Creating a new Vm: " + vmId.toString());
         return Vms.get(vmId.toString());
     }

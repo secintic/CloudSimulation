@@ -24,7 +24,7 @@ public class ReadGoogleData {
         return tasks;
     }
 
-    public static List<Task> readDataFromCsv() throws FileNotFoundException {
+    public static List<Task> readDataFromCsv() {
         String line;
         List<Task> tasks = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader("data.csv"))) {

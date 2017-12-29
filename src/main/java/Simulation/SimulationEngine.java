@@ -42,9 +42,6 @@ class SimulationEngine {
             }
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
-            if (simulationTime == 990) {
-                log.info("afsdassa");
-            }
             log.info("number of application: " + tasks.size() + " number of Vm: " + Vms.size());
             numberOfVms[simulationTime] = Vms.size();
         }
@@ -157,24 +154,24 @@ class SimulationEngine {
                 if (v.getUtilization() >= 20 && !(v.getVmId().equals(vm.getVmId())))
                     totalSpace += v.getUtilization();
             }
-            if (totalSpace < 200) {// all vms have same capacity
+            if (totalSpace < 700) {// all vms have same capacity
                 log.info("Consolidation is rejected according to ftm metric");
                 return;
             }
         }
         String vmId = vm.getVmId();
-        //  log.info("Consolidating Vm#" + vmId);
+        log.info("Consolidating Vm#" + vmId);
         if (checkOtherVmsForMigration(vm, time)) {
             deleteVm(vm);
-        } //else
-        //       log.info("Vm#" + vmId + " CANNOT be consolidated");
+        } else
+            log.info("Vm#" + vmId + " CANNOT be consolidated");
     }
 
     private void deleteVm(Vm vm) {
         vm.getTasks().clear();
         Vms.remove(vm.getVmId());
         numberOfVm--;
-        //     log.info("Consolidated Vm#" + vm.getVmId());
+        log.info("Consolidated Vm#" + vm.getVmId());
     }
 
     private boolean checkOtherVmsForMigration(Vm vm, int time) {

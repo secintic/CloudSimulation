@@ -20,7 +20,6 @@ class SimulationEngine {
 
     void run(int simulationDuration, int threshold, int errorFreq, int experiment, String fileName) throws IOException {
         createVms();
-        //tasks = ReadGoogleData.read();
         tasks = ReadGoogleData.readDataFromCsv();
         double[] numberOfActiveApplication = new double[simulationDuration];
         double[] numberOfVms = new double[simulationDuration];
@@ -78,26 +77,26 @@ class SimulationEngine {
     }
 
     private void consolidateLowUtilVms(int threshold, int simulationTime, boolean ftm) {
-        Set<Vm> toBeConsolidated = new HashSet<>();
-        for (Map.Entry<String, Vm> entry : Vms.entrySet()) {
-            if (entry.getValue().getUtilization() < threshold) {
-                toBeConsolidated.add(entry.getValue());
+        if (simulationTime > 50) {
+            Set<Vm> toBeConsolidated = new HashSet<>();
+            for (Map.Entry<String, Vm> entry : Vms.entrySet()) {
+                if (entry.getValue().getUtilization() < threshold) {
+                    toBeConsolidated.add(entry.getValue());
+                }
             }
+            for (Vm vm : toBeConsolidated) {
+                consolidateVm(vm, ftm, simulationTime);
+            }
+            toBeConsolidated.clear();
         }
-        for (Vm vm : toBeConsolidated) {
-            consolidateVm(vm, ftm, simulationTime);
-        }
-        toBeConsolidated.clear();
     }
 
     private void checkVmFault(int simulationTime, int errorFreq, int experiment) {
         if ((simulationTime + 1) % errorFreq == 0 & numberOfVm > 4) {
-            Random r = new Random();
-            Object[] keyArray = Vms.keySet().toArray();
-            Vm vm = Vms.get(keyArray[r.nextInt(numberOfVm)]);
+            Vm vm = Vms.get(findMaxUtilVmUtil());
             log.info("An Error Occurred On VM: " + vm.getVmId());
             if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
-                Vm v = createNewVm(simulationTime);
+                Vm v = createNewVm(simulationTime, true);
                 vm.getTasks().values().forEach(task -> v.assignTask(task, false));
             }
             deleteVm(vm);
@@ -122,7 +121,7 @@ class SimulationEngine {
                     if (foundVm != null)
                         foundVm.assignTask(task, false);
                     else {
-                        createNewVm(simulationTime).assignTask(task, false);
+                        createNewVm(simulationTime, false).assignTask(task, false);
                     }
                 }
             } else {
@@ -146,18 +145,10 @@ class SimulationEngine {
         }
     }
 
-    //Check other vms before consolidation
     private void consolidateVm(Vm vm, boolean ftm, int time) {
-        if (ftm) {
-            double totalSpace = 0;
-            for (Vm v : Vms.values()) {
-                if (!(v.getVmId().equals(vm.getVmId())))
-                    totalSpace += v.getUtilization();
-            }
-            if (totalSpace < 250) {// all vms have same capacity
-                log.info("Consolidation is rejected according to ftm metric");
-                return;
-            }
+        if (ftm && !checkOtherVmsForMigrationAfterRemoval(Vms.get(findMaxUtilVmUtil()), vm)) {
+            log.info("Consolidation is rejected according to ftm metric");
+            return;
         }
         String vmId = vm.getVmId();
         log.info("Consolidating Vm#" + vmId);
@@ -165,6 +156,19 @@ class SimulationEngine {
             deleteVm(vm);
         } else
             log.info("Vm#" + vmId + " CANNOT be consolidated");
+    }
+
+
+    private String findMaxUtilVmUtil() {
+        double util = 0;
+        String vmID = "";
+        for (Vm v : Vms.values()) {
+            if (util < v.getUtilization()) {
+                util = v.getUtilization();
+                vmID = v.getVmId();
+            }
+        }
+        return vmID;
     }
 
     private void deleteVm(Vm vm) {
@@ -211,14 +215,51 @@ class SimulationEngine {
             Vms.get(entry.getValue()).assignTask(vm.getTasks().get(entry.getKey()), false);
         }
         this.numberOfMigration[time] += assignedTasks.size();
+
         return true;
     }
 
-    private Vm createNewVm(int i) {
+    private boolean checkOtherVmsForMigrationAfterRemoval(Vm vm, Vm targetVm) {
+        Map<String, Vm> assignableVmList = new HashMap<>();
+        Map<String, String> assignedTasks = new HashMap<>();
+        for (Task task : vm.getTasks().values()) {
+            Vm foundVm = findMigrateVmExcept(task, assignableVmList, targetVm);
+            if (foundVm == null) {
+                return false;
+            } else {
+                if (!(assignableVmList.containsKey(foundVm.getVmId()))) {
+                    HashMap<String, Double> usedResources = new HashMap<>();
+                    usedResources.put("CPU", foundVm.getUsedResources().get("CPU"));
+                    usedResources.put("Memory", foundVm.getUsedResources().get("Memory"));
+                    assignableVmList.put(foundVm.getVmId(),
+                            Vm.builder().capacities(foundVm.getCapacities())
+                                    .usedResources(usedResources)
+                                    .VmId(foundVm.getVmId()).build());
+                    HashMap<String, Task> tasks = new HashMap<>();
+                    for (Task t : foundVm.getTasks().values()) {
+                        tasks.put(t.getTaskId(), Task.builder()
+                                .startTime(t.getStartTime())
+                                .endTime(t.getEndTime())
+                                .taskId(t.getTaskId())
+                                .vmId(t.getVmId())
+                                .resource("CPU", t.getResources().get("CPU"))
+                                .resource("Memory", t.getResources().get("Memory")).build());
+                    }
+                    assignableVmList.get(foundVm.getVmId()).setTasks(tasks);
+                }
+                assignableVmList.get(foundVm.getVmId()).assignTask(task, true);
+                assignedTasks.put(task.getTaskId(), foundVm.getVmId());
+            }
+        }
+        return true;
+    }
+
+
+    private Vm createNewVm(int i, boolean fault) {
         UUID vmId = UUID.randomUUID();
         numberOfVm++;
-        for (int j = i; j < i + 20 && j < 1000; j++)
-            energyConsumptionArray[j] += 200;
+        for (int j = i; j < i + 20 && j < 1000 && fault; j++)
+            energyConsumptionArray[j] += 500;
         Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString())
                 .capacity("CPU", 20.0).capacity("Memory", 20.0).build());
         log.info("Creating a new Vm: " + vmId.toString());
@@ -249,6 +290,23 @@ class SimulationEngine {
         }
         return null;
     }
+
+    private Vm findMigrateVmExcept(Task task, Map<String, Vm> pseudoList, Vm targetVm) {
+        for (Vm vm : Vms.values()) {
+            if (!(vm.getVmId().equals(task.getVmId())) && vm.getVmId().equals(targetVm.getVmId())) {
+                if (pseudoList.containsKey(vm.getVmId())) {
+                    if (pseudoList.get(vm.getVmId()).checkVmSpace(task))
+                        return pseudoList.get(vm.getVmId());
+                } else {
+                    if (vm.checkVmSpace(task)) {
+                        return vm;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
 
     private void removeFromVm(Task task) {
         Vms.get(task.getVmId()).removeTask(task);

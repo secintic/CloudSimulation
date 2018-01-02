@@ -258,8 +258,6 @@ class SimulationEngine {
     private Vm createNewVm(int i, boolean fault) {
         UUID vmId = UUID.randomUUID();
         numberOfVm++;
-        for (int j = i; j < i + 50 && j < 1000 && fault; j++)
-            energyConsumptionArray[j] += 500;
         Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString())
                 .capacity("CPU", 20.0).capacity("Memory", 20.0).build());
         log.info("Creating a new Vm: " + vmId.toString());

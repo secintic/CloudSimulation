@@ -28,7 +28,7 @@ class SimulationEngine {
             log.info("Simulation time: " + simulationTime);
             assignNewTasks(simulationTime);
             removeDoneTasks(simulationTime);
-            checkVmFault(simulationTime, errorFreq, experiment);
+
             switch (experiment) {
                 case 0:
                     break;
@@ -39,6 +39,7 @@ class SimulationEngine {
                     consolidateLowUtilVms(threshold, simulationTime, true);
                     break;
             }
+            checkVmFault(simulationTime, errorFreq, experiment);
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
             log.info("number of application: " + tasks.size() + " number of Vm: " + Vms.size());
@@ -183,32 +184,7 @@ class SimulationEngine {
         Map<String, String> assignedTasks = new HashMap<>();
         for (Task task : vm.getTasks().values()) {
             Vm foundVm = findMigrateVm(task, assignableVmList);
-            if (foundVm == null) {
-                return false;
-            } else {
-                if (!(assignableVmList.containsKey(foundVm.getVmId()))) {
-                    HashMap<String, Double> usedResources = new HashMap<>();
-                    usedResources.put("CPU", foundVm.getUsedResources().get("CPU"));
-                    usedResources.put("Memory", foundVm.getUsedResources().get("Memory"));
-                    assignableVmList.put(foundVm.getVmId(),
-                            Vm.builder().capacities(foundVm.getCapacities())
-                                    .usedResources(usedResources)
-                                    .VmId(foundVm.getVmId()).build());
-                    HashMap<String, Task> tasks = new HashMap<>();
-                    for (Task t : foundVm.getTasks().values()) {
-                        tasks.put(t.getTaskId(), Task.builder()
-                                .startTime(t.getStartTime())
-                                .endTime(t.getEndTime())
-                                .taskId(t.getTaskId())
-                                .vmId(t.getVmId())
-                                .resource("CPU", t.getResources().get("CPU"))
-                                .resource("Memory", t.getResources().get("Memory")).build());
-                    }
-                    assignableVmList.get(foundVm.getVmId()).setTasks(tasks);
-                }
-                assignableVmList.get(foundVm.getVmId()).assignTask(task, true);
-                assignedTasks.put(task.getTaskId(), foundVm.getVmId());
-            }
+            if (checkOtherVms(assignableVmList, assignedTasks, task, foundVm)) return false;
         }
 
         for (Map.Entry<String, String> entry : assignedTasks.entrySet()) {
@@ -219,37 +195,42 @@ class SimulationEngine {
         return true;
     }
 
+    private boolean checkOtherVms(Map<String, Vm> assignableVmList, Map<String, String> assignedTasks, Task task, Vm foundVm) {
+        if (foundVm == null) {
+            return true;
+        } else {
+            if (!(assignableVmList.containsKey(foundVm.getVmId()))) {
+                HashMap<String, Double> usedResources = new HashMap<>();
+                usedResources.put("CPU", foundVm.getUsedResources().get("CPU"));
+                usedResources.put("Memory", foundVm.getUsedResources().get("Memory"));
+                assignableVmList.put(foundVm.getVmId(),
+                        Vm.builder().capacities(foundVm.getCapacities())
+                                .usedResources(usedResources)
+                                .VmId(foundVm.getVmId()).build());
+                HashMap<String, Task> tasks = new HashMap<>();
+                for (Task t : foundVm.getTasks().values()) {
+                    tasks.put(t.getTaskId(), Task.builder()
+                            .startTime(t.getStartTime())
+                            .endTime(t.getEndTime())
+                            .taskId(t.getTaskId())
+                            .vmId(t.getVmId())
+                            .resource("CPU", t.getResources().get("CPU"))
+                            .resource("Memory", t.getResources().get("Memory")).build());
+                }
+                assignableVmList.get(foundVm.getVmId()).setTasks(tasks);
+            }
+            assignableVmList.get(foundVm.getVmId()).assignTask(task, true);
+            assignedTasks.put(task.getTaskId(), foundVm.getVmId());
+        }
+        return false;
+    }
+
     private boolean checkOtherVmsForMigrationAfterRemoval(Vm vm, Vm targetVm) {
         Map<String, Vm> assignableVmList = new HashMap<>();
         Map<String, String> assignedTasks = new HashMap<>();
         for (Task task : vm.getTasks().values()) {
             Vm foundVm = findMigrateVmExcept(task, assignableVmList, targetVm);
-            if (foundVm == null) {
-                return false;
-            } else {
-                if (!(assignableVmList.containsKey(foundVm.getVmId()))) {
-                    HashMap<String, Double> usedResources = new HashMap<>();
-                    usedResources.put("CPU", foundVm.getUsedResources().get("CPU"));
-                    usedResources.put("Memory", foundVm.getUsedResources().get("Memory"));
-                    assignableVmList.put(foundVm.getVmId(),
-                            Vm.builder().capacities(foundVm.getCapacities())
-                                    .usedResources(usedResources)
-                                    .VmId(foundVm.getVmId()).build());
-                    HashMap<String, Task> tasks = new HashMap<>();
-                    for (Task t : foundVm.getTasks().values()) {
-                        tasks.put(t.getTaskId(), Task.builder()
-                                .startTime(t.getStartTime())
-                                .endTime(t.getEndTime())
-                                .taskId(t.getTaskId())
-                                .vmId(t.getVmId())
-                                .resource("CPU", t.getResources().get("CPU"))
-                                .resource("Memory", t.getResources().get("Memory")).build());
-                    }
-                    assignableVmList.get(foundVm.getVmId()).setTasks(tasks);
-                }
-                assignableVmList.get(foundVm.getVmId()).assignTask(task, true);
-                assignedTasks.put(task.getTaskId(), foundVm.getVmId());
-            }
+            if (checkOtherVms(assignableVmList, assignedTasks, task, foundVm)) return false;
         }
         return true;
     }

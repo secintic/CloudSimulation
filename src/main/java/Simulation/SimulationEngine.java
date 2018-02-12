@@ -23,6 +23,7 @@ class SimulationEngine {
         tasks = ReadGoogleData.readDataFromCsv();
         double[] numberOfActiveApplication = new double[simulationDuration];
         double[] numberOfVms = new double[simulationDuration];
+        double[] appsMigratedOnFault = new double[simulationDuration];
         numberOfMigration = new double[simulationDuration];
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
             log.info("Simulation time: " + simulationTime);
@@ -39,7 +40,8 @@ class SimulationEngine {
                     consolidateLowUtilVms(threshold, simulationTime, true);
                     break;
             }
-            checkVmFault(simulationTime, errorFreq, experiment);
+            if (simulationTime > 0)
+                appsMigratedOnFault[simulationTime] += checkVmFault(simulationTime, errorFreq, experiment) + appsMigratedOnFault[simulationTime-1];
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
             log.info("number of application: " + tasks.size() + " number of Vm: " + Vms.size());
@@ -48,6 +50,7 @@ class SimulationEngine {
         writeToFile(fileName, energyConsumptionArray);
         writeToFile("apps.csv", numberOfActiveApplication);
         writeToFile("vms_" + fileName, numberOfVms);
+        writeToFile("appsMigrated_" + fileName, appsMigratedOnFault);
         for (int i = 1; i < simulationDuration; i++) {
             numberOfMigration[i] += numberOfMigration[i - 1];
         }
@@ -92,9 +95,11 @@ class SimulationEngine {
         }
     }
 
-    private void checkVmFault(int simulationTime, int errorFreq, int experiment) {
+    private int checkVmFault(int simulationTime, int errorFreq, int experiment) {
+        int numberOfAppsMigrated = 0;
         if ((simulationTime + 1) % errorFreq == 0 & numberOfVm > 4) {
             Vm vm = Vms.get(findMaxUtilVmUtil());
+            numberOfAppsMigrated = vm.getTasks().size();
             log.info("An Error Occurred On VM: " + vm.getVmId());
             if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
                 Vm v = createNewVm(simulationTime, true);
@@ -102,6 +107,7 @@ class SimulationEngine {
             }
             deleteVm(vm);
         }
+        return numberOfAppsMigrated;
     }
 
     private void removeDoneTasks(int simulationTime) {

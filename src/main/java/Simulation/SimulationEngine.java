@@ -99,6 +99,7 @@ class SimulationEngine {
         log.info("An Error Occurred On VM: " + vm.getVmId());
         if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
             Vm v = createNewVm(simulationTime, true);
+            numberOfMigration[simulationTime]+= vm.getTasks().size();
             vm.getTasks().values().forEach(task -> v.assignTask(task, false));
         }
         deleteVm(vm);

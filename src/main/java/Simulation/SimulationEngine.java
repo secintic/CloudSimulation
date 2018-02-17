@@ -17,8 +17,9 @@ class SimulationEngine {
     private List<Task> tasks;
     private double[] energyConsumptionArray;
     private double[] numberOfMigration;
+    private List<Integer> faultTimesAccordingToWeibullDist;
 
-    void run(int simulationDuration, int threshold, int errorFreq, int experiment, String fileName) throws IOException {
+    void run(int simulationDuration, int threshold, int experiment, String fileName) throws IOException {
         createVms();
         tasks = ReadGoogleData.readDataFromCsv();
         double[] numberOfActiveApplication = new double[simulationDuration];
@@ -39,7 +40,8 @@ class SimulationEngine {
                     consolidateLowUtilVms(threshold, simulationTime, true);
                     break;
             }
-            checkVmFault(simulationTime, errorFreq, experiment);
+            if (faultTimesAccordingToWeibullDist.contains(simulationTime))
+                faultOccurred(simulationTime, experiment);
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
             log.info("number of application: " + tasks.size() + " number of Vm: " + Vms.size());
@@ -92,16 +94,14 @@ class SimulationEngine {
         }
     }
 
-    private void checkVmFault(int simulationTime, int errorFreq, int experiment) {
-        if ((simulationTime + 1) % errorFreq == 0 & numberOfVm > 4) {
-            Vm vm = Vms.get(findMaxUtilVmUtil());
-            log.info("An Error Occurred On VM: " + vm.getVmId());
-            if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
-                Vm v = createNewVm(simulationTime, true);
-                vm.getTasks().values().forEach(task -> v.assignTask(task, false));
-            }
-            deleteVm(vm);
+    private void faultOccurred(int simulationTime, int experiment) {
+        Vm vm = Vms.get(findMaxUtilVmUtil());
+        log.info("An Error Occurred On VM: " + vm.getVmId());
+        if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
+            Vm v = createNewVm(simulationTime, true);
+            vm.getTasks().values().forEach(task -> v.assignTask(task, false));
         }
+        deleteVm(vm);
     }
 
     private void removeDoneTasks(int simulationTime) {

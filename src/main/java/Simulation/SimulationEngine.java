@@ -22,7 +22,6 @@ class SimulationEngine {
     void run(int simulationDuration, int threshold, int experiment, String fileName) throws IOException {
         createVms();
         tasks = ReadGoogleData.readDataFromCsv();
-        double[] numberOfActiveApplication = new double[simulationDuration];
         double[] numberOfVms = new double[simulationDuration];
         numberOfMigration = new double[simulationDuration];
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
@@ -43,12 +42,9 @@ class SimulationEngine {
             if (faultTimesAccordingToWeibullDist.contains(simulationTime))
                 faultOccurred(simulationTime, experiment);
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
-            numberOfActiveApplication[simulationTime] = countNumberOfActiveApplications();
-            log.info("number of application: " + tasks.size() + " number of Vm: " + Vms.size());
             numberOfVms[simulationTime] = Vms.size();
         }
         writeToFile(fileName, energyConsumptionArray);
-        writeToFile("apps.csv", numberOfActiveApplication);
         writeToFile("vms_" + fileName, numberOfVms);
         for (int i = 1; i < simulationDuration; i++) {
             numberOfMigration[i] += numberOfMigration[i - 1];
@@ -57,15 +53,6 @@ class SimulationEngine {
         Vms.clear();
         tasks.clear();
         numberOfVm = 0;
-    }
-
-    private int countNumberOfActiveApplications() {
-        int numberOfActiveApplications = 0;
-        for (Vm v : Vms.values()) {
-            numberOfActiveApplications += v.getTasks().size();
-        }
-
-        return numberOfActiveApplications;
     }
 
     private void writeToFile(String fileName, double[] values) throws IOException {
@@ -95,11 +82,11 @@ class SimulationEngine {
     }
 
     private void faultOccurred(int simulationTime, int experiment) {
-        Vm vm = Vms.get(findMaxUtilVmUtil());
+        Vm vm = Vms.get(findSpecificUtilVmUtil("max"));
         log.info("An Error Occurred On VM: " + vm.getVmId());
         if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
             Vm v = createNewVm(simulationTime, true);
-            numberOfMigration[simulationTime]+= vm.getTasks().size();
+            numberOfMigration[simulationTime] += vm.getTasks().size();
             vm.getTasks().values().forEach(task -> v.assignTask(task, false));
         }
         deleteVm(vm);
@@ -148,7 +135,8 @@ class SimulationEngine {
     }
 
     private void consolidateVm(Vm vm, boolean ftm, int time) {
-        if (ftm && !checkOtherVmsForMigrationAfterRemoval(Vms.get(findMaxUtilVmUtil()), vm)) {
+        if (ftm && !checkOtherVmsForMigrationAfterRemoval(Vms.get(findSpecificUtilVmUtil("max" +
+                "")), vm)) {
             log.info("Consolidation is rejected according to ftm metric");
             return;
         }
@@ -160,17 +148,18 @@ class SimulationEngine {
             log.info("Vm#" + vmId + " CANNOT be consolidated");
     }
 
+    private String findSpecificUtilVmUtil(String type) {
+        List<Vm> vms = new ArrayList<>(Vms.values());
+        vms.sort(Comparator.comparing(Vm::getUtilization));
+        switch (type) {
+            case "median":
+                return vms.get(vms.size() / 2).getVmId();
+            case "min":
+                return vms.get(0).getVmId();
 
-    private String findMaxUtilVmUtil() {
-        double util = 0;
-        String vmID = "";
-        for (Vm v : Vms.values()) {
-            if (util < v.getUtilization()) {
-                util = v.getUtilization();
-                vmID = v.getVmId();
-            }
+            default:
+                return vms.get(vms.size() - 1).getVmId();
         }
-        return vmID;
     }
 
     private void deleteVm(Vm vm) {

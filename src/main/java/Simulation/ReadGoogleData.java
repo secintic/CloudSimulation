@@ -1,7 +1,9 @@
 package Simulation;
 
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class ReadGoogleData {
     public static List<Task> read() {
@@ -12,7 +14,7 @@ public class ReadGoogleData {
                 String[] columns = line.split(",");
                 tasks.add(Task.builder()
                         .startTime(Double.parseDouble(columns[0]) / (1000.0 * 1000.0))
-                        .endTime(Double.parseDouble(columns[1]) / (1000.0 * 1000.0))
+                        .duration((Double.parseDouble(columns[1]) - Double.parseDouble(columns[0])) / (1000.0 * 1000.0))
                         .taskId(columns[2] + columns[3])
                         .resource("CPU", Double.parseDouble(columns[5]))
                         .resource("Memory", Double.parseDouble(columns[10])).build());
@@ -32,7 +34,7 @@ public class ReadGoogleData {
                 String[] columns = line.split(",");
                 tasks.add(Task.builder()
                         .startTime(Double.parseDouble(columns[0]))
-                        .endTime(Double.parseDouble(columns[1]))
+                        .duration((Double.parseDouble(columns[1]) - Double.parseDouble(columns[0])))
                         .taskId(columns[2])
                         .resource("CPU", Double.parseDouble(columns[3]))
                         .resource("Memory", Double.parseDouble(columns[4])).build());
@@ -50,7 +52,7 @@ public class ReadGoogleData {
         for (Task t : tasks) {
             sb.append(t.getStartTime());
             sb.append(',');
-            sb.append(t.getEndTime());
+            sb.append(t.getDuration());
             sb.append(',');
             sb.append(t.getTaskId());
             sb.append(',');
@@ -75,7 +77,7 @@ public class ReadGoogleData {
             while (numberOfTasksInTheCycle > 0) {
                 tasks.add(Task.builder()
                         .startTime(i)
-                        .endTime(i + (r.nextInt(51) + 50))
+                        .duration((r.nextInt(51) + 50))
                         .taskId(Integer.toString(tasks.size() + 1))
                         .resource("CPU", (r.nextInt(21) + 10) / 100.0)
                         .resource("Memory", (r.nextInt(21) + 10) / 100.0).build());

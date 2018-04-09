@@ -26,6 +26,7 @@ class SimulationEngine {
         numberOfMigration = new double[simulationDuration];
         for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
             log.info("Simulation time: " + simulationTime);
+            increaseProcessTimes();
             assignNewTasks(simulationTime);
             removeDoneTasks(simulationTime);
 
@@ -54,6 +55,7 @@ class SimulationEngine {
         tasks.clear();
         numberOfVm = 0;
     }
+
 
     private void writeToFile(String fileName, double[] values) throws IOException {
         BufferedWriter br = new BufferedWriter(new FileWriter(fileName));
@@ -94,10 +96,18 @@ class SimulationEngine {
 
     private void removeDoneTasks(int simulationTime) {
         for (int j = 0; j < tasks.size(); j++) {
-            if (tasks.get(j).getEndTime() <= simulationTime) {
+            if (tasks.get(j).getDuration() - tasks.get(j).getTotalProcessTime() <= simulationTime) {
                 removeFromVm(tasks.get(j));
                 tasks.remove(j);
                 j--;
+            }
+        }
+    }
+
+    private void increaseProcessTimes() {
+        for (Task task : tasks) {
+            if (task.getVmId() != null) {
+                task.increaseTotalProcessTime();
             }
         }
     }
@@ -201,7 +211,8 @@ class SimulationEngine {
                 for (Task t : foundVm.getTasks().values()) {
                     tasks.put(t.getTaskId(), Task.builder()
                             .startTime(t.getStartTime())
-                            .endTime(t.getEndTime())
+                            .duration(t.getDuration())
+                            .totalProcessTime(t.getTotalProcessTime())
                             .taskId(t.getTaskId())
                             .vmId(t.getVmId())
                             .resource("CPU", t.getResources().get("CPU"))

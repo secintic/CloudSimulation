@@ -28,7 +28,7 @@ class SimulationEngine {
         tasks = ReadGoogleData.readDataFromCsv();
         double[] numberOfVms = new double[simulationDuration];
         numberOfMigration = new double[simulationDuration];
-        for (int simulationTime = 0; simulationTime < simulationDuration; simulationTime++) {
+        for (int simulationTime = 0; simulationTime < simulationDuration && !tasks.isEmpty(); simulationTime++) {
             log.info("Simulation time: " + simulationTime);
             increaseProcessTimes();
             assignNewTasks(simulationTime);

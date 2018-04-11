@@ -10,7 +10,7 @@ public class Main {
         int threshold = 50;
         String[] filenames = new String[]{"noConsolidation.csv", "consolidate.csv", "ftm.csv"};
         for (int i = 0; i < 3; i++) {
-            SimulationEngine sim = SimulationEngine.builder().numberOfVm(numberOfVm).energyConsumptionArray(new double[simulationDuration]).
+            SimulationEngine sim = SimulationEngine.builder().numberOfVm(numberOfVm).VmLimit(10).energyConsumptionArray(new double[simulationDuration]).
                     faultTimesAccordingToWeibullDist(new ArrayList<Integer>() {
                         {
                             add(49);

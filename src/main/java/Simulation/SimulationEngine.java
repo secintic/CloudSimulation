@@ -13,11 +13,15 @@ import java.util.*;
 class SimulationEngine {
     @Builder.Default
     private HashMap<String, Vm> Vms = new HashMap<>();
+    @Builder.Default
+    private Queue<Task> taskQueue = new LinkedList<>();
     private int numberOfVm;
     private List<Task> tasks;
     private double[] energyConsumptionArray;
     private double[] numberOfMigration;
     private List<Integer> faultTimesAccordingToWeibullDist;
+    private int VmLimit;
+
 
     void run(int simulationDuration, int threshold, int experiment, String fileName) throws IOException {
         createVms();
@@ -116,15 +120,24 @@ class SimulationEngine {
         for (Task task : tasks) {
             if (task.getStartTime() <= simulationTime) {
                 if (task.getVmId() == null) {
-                    Vm foundVm = findAppropriateVm(task);
-                    if (foundVm != null)
-                        foundVm.assignTask(task, false);
-                    else {
-                        createNewVm(simulationTime, false).assignTask(task, false);
-                    }
+                    taskQueue.add(task);
                 }
             } else {
                 break;
+            }
+        }
+        while (!taskQueue.isEmpty()) {
+            Task t = taskQueue.peek();
+            Vm foundVm = findAppropriateVm(t);
+            if (foundVm != null) {
+                foundVm.assignTask(t, false);
+                taskQueue.poll();
+            } else {
+                if (Vms.size() < VmLimit) {
+                    createNewVm(simulationTime, false).assignTask(t, false);
+                    taskQueue.poll();
+                } else
+                    break;
             }
         }
     }

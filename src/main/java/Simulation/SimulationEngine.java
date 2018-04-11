@@ -21,6 +21,7 @@ class SimulationEngine {
     private double[] numberOfMigration;
     private List<Integer> faultTimesAccordingToWeibullDist;
     private int VmLimit;
+    private int migrationOverhead;
 
 
     void run(int simulationDuration, int threshold, int experiment, String fileName) throws IOException {
@@ -28,8 +29,9 @@ class SimulationEngine {
         tasks = ReadGoogleData.readDataFromCsv();
         double[] numberOfVms = new double[simulationDuration];
         numberOfMigration = new double[simulationDuration];
-        for (int simulationTime = 0; simulationTime < simulationDuration && !tasks.isEmpty(); simulationTime++) {
-            log.info("Simulation time: " + simulationTime);
+        int simulationTime;
+        for (simulationTime = 0; simulationTime < simulationDuration && !tasks.isEmpty(); simulationTime++) {
+
             increaseProcessTimes();
             assignNewTasks(simulationTime);
             removeDoneTasks();
@@ -49,6 +51,7 @@ class SimulationEngine {
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfVms[simulationTime] = Vms.size();
         }
+        log.info("Simulation time: " + simulationTime);
         writeToFile(fileName, energyConsumptionArray);
         writeToFile("vms_" + fileName, numberOfVms);
         for (int i = 1; i < simulationDuration; i++) {
@@ -89,7 +92,6 @@ class SimulationEngine {
 
     private void faultOccurred(int simulationTime, int experiment) {
         Vm vm = Vms.get(findSpecificUtilVmUtil("max"));
-        log.info("An Error Occurred On VM: " + vm.getVmId());
         if (!checkOtherVmsForMigration(vm, simulationTime) || experiment == 0) {
             Vm v = createNewVm(simulationTime, true);
             numberOfMigration[simulationTime] += vm.getTasks().size();
@@ -158,17 +160,13 @@ class SimulationEngine {
     }
 
     private void consolidateVm(Vm vm, boolean ftm, int time) {
-        if (ftm && !checkOtherVmsForMigrationAfterRemoval(Vms.get(findSpecificUtilVmUtil("max" +
-                "")), vm)) {
-            log.info("Consolidation is rejected according to ftm metric");
+        if (ftm && !checkOtherVmsForMigrationAfterRemoval(Vms.get(findSpecificUtilVmUtil("max")), vm)) {
             return;
         }
         String vmId = vm.getVmId();
-        log.info("Consolidating Vm#" + vmId);
         if (checkOtherVmsForMigration(vm, time)) {
             deleteVm(vm);
-        } else
-            log.info("Vm#" + vmId + " CANNOT be consolidated");
+        }
     }
 
     private String findSpecificUtilVmUtil(String type) {
@@ -189,7 +187,6 @@ class SimulationEngine {
         vm.getTasks().clear();
         Vms.remove(vm.getVmId());
         numberOfVm--;
-        log.info("Consolidated Vm#" + vm.getVmId());
     }
 
     private boolean checkOtherVmsForMigration(Vm vm, int time) {
@@ -199,7 +196,9 @@ class SimulationEngine {
             Vm foundVm = findMigrateVm(task, assignableVmList);
             if (checkOtherVms(assignableVmList, assignedTasks, task, foundVm)) return false;
         }
-
+        for (Task task : vm.getTasks().values()) {
+            task.setDuration(task.getDuration() + migrationOverhead);
+        }
         for (Map.Entry<String, String> entry : assignedTasks.entrySet()) {
             Vms.get(entry.getValue()).assignTask(vm.getTasks().get(entry.getKey()), false);
         }
@@ -255,7 +254,6 @@ class SimulationEngine {
         numberOfVm++;
         Vms.put(vmId.toString(), Vm.builder().VmId(vmId.toString())
                 .capacity("CPU", 20.0).capacity("Memory", 20.0).build());
-        log.info("Creating a new Vm: " + vmId.toString());
         return Vms.get(vmId.toString());
     }
 

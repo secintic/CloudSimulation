@@ -6,11 +6,11 @@ import java.util.ArrayList;
 public class Main {
     public static void main(String[] args) throws IOException {
         int numberOfVm = 4;
-        int simulationDuration = 2000;
+        int simulationDuration = 3000;
         int threshold = 50;
         String[] filenames = new String[]{"noConsolidation.csv", "consolidate.csv", "ftm.csv"};
         for (int i = 0; i < 3; i++) {
-            SimulationEngine sim = SimulationEngine.builder().numberOfVm(numberOfVm).VmLimit(10).energyConsumptionArray(new double[simulationDuration]).
+            SimulationEngine sim = SimulationEngine.builder().numberOfVm(numberOfVm).VmLimit(10).migrationOverhead(50).energyConsumptionArray(new double[simulationDuration]).
                     faultTimesAccordingToWeibullDist(new ArrayList<Integer>() {
                         {
                             add(49);

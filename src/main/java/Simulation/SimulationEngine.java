@@ -28,7 +28,7 @@ class SimulationEngine {
             log.info("Simulation time: " + simulationTime);
             increaseProcessTimes();
             assignNewTasks(simulationTime);
-            removeDoneTasks(simulationTime);
+            removeDoneTasks();
 
             switch (experiment) {
                 case 0:
@@ -94,9 +94,9 @@ class SimulationEngine {
         deleteVm(vm);
     }
 
-    private void removeDoneTasks(int simulationTime) {
+    private void removeDoneTasks() {
         for (int j = 0; j < tasks.size(); j++) {
-            if (tasks.get(j).getDuration() - tasks.get(j).getTotalProcessTime() <= simulationTime) {
+            if (tasks.get(j).getDuration() - tasks.get(j).getTotalProcessTime() <= 0) {
                 removeFromVm(tasks.get(j));
                 tasks.remove(j);
                 j--;

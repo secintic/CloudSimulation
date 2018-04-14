@@ -9,24 +9,26 @@ public class Main {
         int simulationDuration = 3000;
         int threshold = 50;
         String[] filenames = new String[]{"noConsolidation.csv", "consolidate.csv", "ftm.csv"};
-        for (int i = 0; i < 3; i++) {
-            SimulationEngine sim = SimulationEngine.builder().numberOfVm(numberOfVm).VmLimit(10).migrationOverhead(50).energyConsumptionArray(new double[simulationDuration]).
-                    faultTimesAccordingToWeibullDist(new ArrayList<Integer>() {
-                        {
-                            add(49);
-                            add(72);
-                            add(88);
-                            add(137);
-                            add(157);
-                            add(337);
-                            add(364);
-                            add(475);
-                            add(733);
-                            add(891);
-                        }
-                    }).build();
-            sim.run(simulationDuration, threshold, i, filenames[i]);
-        }
 
+            for (int i = 1; i < 3; i++) {
+                for (int j = 0; j < 101; j = j + 10) {
+                SimulationEngine sim = SimulationEngine.builder().numberOfVm(numberOfVm).VmLimit(10).migrationOverhead(j).energyConsumptionArray(new double[simulationDuration]).
+                        faultTimesAccordingToWeibullDist(new ArrayList<Integer>() {
+                            {
+                                add(49);
+                                add(72);
+                                add(88);
+                                add(137);
+                                add(157);
+                                add(337);
+                                add(364);
+                                add(475);
+                                add(733);
+                                add(891);
+                            }
+                        }).build();
+                sim.run(simulationDuration, threshold, i, filenames[i]);
+            }
+        }
     }
 }

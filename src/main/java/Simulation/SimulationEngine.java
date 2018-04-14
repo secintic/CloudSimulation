@@ -22,6 +22,7 @@ class SimulationEngine {
     private List<Integer> faultTimesAccordingToWeibullDist;
     private int VmLimit;
     private int migrationOverhead;
+    private int totalResponseTime;
 
 
     void run(int simulationDuration, int threshold, int experiment, String fileName) throws IOException {
@@ -34,7 +35,7 @@ class SimulationEngine {
 
             increaseProcessTimes();
             assignNewTasks(simulationTime);
-            removeDoneTasks();
+            removeDoneTasks(simulationTime);
 
             switch (experiment) {
                 case 0:
@@ -51,7 +52,7 @@ class SimulationEngine {
             energyConsumptionArray[simulationTime] += calculateEnergyConsumption();
             numberOfVms[simulationTime] = Vms.size();
         }
-        log.info("Simulation time: " + simulationTime);
+        log.info("Simulation time: " + totalResponseTime);
         writeToFile(fileName, energyConsumptionArray);
         writeToFile("vms_" + fileName, numberOfVms);
         for (int i = 1; i < simulationDuration; i++) {
@@ -100,9 +101,10 @@ class SimulationEngine {
         deleteVm(vm);
     }
 
-    private void removeDoneTasks() {
+    private void removeDoneTasks(int simulationTime) {
         for (int j = 0; j < tasks.size(); j++) {
             if (tasks.get(j).getDuration() - tasks.get(j).getTotalProcessTime() <= 0) {
+                this.totalResponseTime += simulationTime - tasks.get(j).getStartTime();
                 removeFromVm(tasks.get(j));
                 tasks.remove(j);
                 j--;
@@ -163,7 +165,6 @@ class SimulationEngine {
         if (ftm && !checkOtherVmsForMigrationAfterRemoval(Vms.get(findSpecificUtilVmUtil("max")), vm)) {
             return;
         }
-        String vmId = vm.getVmId();
         if (checkOtherVmsForMigration(vm, time)) {
             deleteVm(vm);
         }
